@@ -85,6 +85,8 @@ class HostFunc(FunctionInstance):
     def __init__(self, functype: structure.FunctionType, hostcode: typing.Callable, funcname: str):
         super().__init__()
         self.functype = functype
+        if hostcode == None:
+            self.hostcode = None
         self.hostcode = hostcode
         self.funcname = funcname
 
@@ -197,6 +199,9 @@ class ExternValue:
     def __init__(self, extern_type: int, addr: int):
         self.extern_type = extern_type
         self.addr = addr
+
+    def __repr__(self):
+        return f"type:{self.extern_type} addr:{self.addr}"
 
 
 class Value:

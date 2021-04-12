@@ -982,6 +982,7 @@ class Module:
                 memory_section = MemorySection.from_reader(io.BytesIO(data))
                 for i, e in enumerate(memory_section.vec):
                     logger.infoln(f'{bin_format.section[section_id][0]:>9}[{i}] {e}')
+                print("!!!!")
                 mod.mems = memory_section.vec
             elif section_id == bin_format.global_section:
                 global_section = GlobalSection.from_reader(io.BytesIO(data))
@@ -1004,7 +1005,6 @@ class Module:
                 mod.elem = element_section.vec
             elif section_id == bin_format.code_section:
                 code_section = CodeSection.from_reader(io.BytesIO(data))
-
                 def printex(instrs: typing.List[Instruction], prefix=0):
                     for e in instrs:
                         a = f'           | {" " * prefix}{bin_format.opcodes[e.code][0]}'

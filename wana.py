@@ -55,6 +55,9 @@ class Runtime:
 
         imps = imps if imps else {}
         externvals = []
+        print(f'mems:{self.store.mems}')
+        print(f'when start init, module.mems:{self.module.mems}')
+
         for e in self.module.imports:
             if e.kind == bin_format.extern_func:
                 # The two if branch is used to detect the possibility of random vulnerability.
@@ -78,7 +81,11 @@ class Runtime:
                     global_vars.add_get_call_value_addr(len(self.store.funcs))
                 if e.module in ('ethereum',) and e.name in ('revert',):
                     global_vars.add_revert_addr(len(self.store.funcs))
-                a = sym_exec.HostFunc(self.module.types[e.desc], hostfunc_map[e.module][e.name], e.name)
+                if e.name in hostfunc_map[e.module] and e.module in hostfunc_map:
+                    hostcode = hostfunc_map[e.module][e.name]
+                else:
+                    hostcode = None
+                a = sym_exec.HostFunc(self.module.types[e.desc], hostcode, e.name)
                 self.store.funcs.append(a)
                 externvals.append(sym_exec.ExternValue(e.kind, len(self.store.funcs) - 1))
                 continue
@@ -88,16 +95,32 @@ class Runtime:
                 externvals.append(sym_exec.ExternValue(e.kind, len(self.store.tables) - 1))
                 continue
             if e.kind == bin_format.extern_mem:
+                print("81334")
                 a = None
                 self.store.mems.append(a)
                 externvals.append(sym_exec.ExternValue(e.kind, len(self.store.mems) - 1))
+                # [TODO]为什么要添加一个空的呢？
                 continue
+
             if e.kind == bin_format.extern_global:
                 a = sym_exec.GlobalInstance(sym_exec.Value(e.desc.valtype, None), e.desc.mut)
                 self.store.globals.append(a)
                 externvals.append(sym_exec.ExternValue(e.kind, len(self.store.globals) - 1))
                 continue
+        print("before")
+        print(self.module.mems)
+        print(self.store)
+        print(externvals)
+        print(f'mems:{self.store.mems}')
+
         self.module_instance.instantiate(self.module, self.store, externvals)
+        print(f'mems:{self.store.mems}')
+
+        print("end")
+
+    def __repr__(self):
+        pass
+        # return f"type:{self.extern_type} addr:{self.addr}"
 
     def func_addr(self, name: str):
         """Search the address of export function.
@@ -226,6 +249,7 @@ def load(name: str, imps: typing.Dict = None) -> Runtime:
         module = structure.Module.from_reader(f)
     global_vars.re_init()
     sym_exec.init_variables()
+    print("load finish")
     return Runtime(module, imps)
 
 

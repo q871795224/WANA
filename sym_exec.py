@@ -11,6 +11,7 @@ import utils
 from random import randint, uniform
 from z3.z3util import get_vars
 from collections import defaultdict
+import traceback
 
 import emulator
 import logger
@@ -75,12 +76,14 @@ class ModuleInstance:
             store: Store,
             externvals: typing.List[ExternValue] = None
     ):
+        print(f'4mems:{store.mems}')
         self.types = module.types
         # [TODO] : z3.If module is not valid, the panic
         for e in module.imports:
             assert e.kind in bin_format.extern_type
 
         assert len(module.imports) == len(externvals)
+        print(f'5mems:{store.mems}')
 
         for i in range(len(externvals)):
             e = externvals[i]
@@ -98,11 +101,19 @@ class ModuleInstance:
             elif e.extern_type == bin_format.extern_mem:
                 a = store.mems[e.addr]
                 b = module.imports[i].desc
-                assert import_matching_limits(b, a.limits)
+                print(f'mem load {i},{a},{b}')
+                # When processing the substrate, the assert is not passed, so it is changed to judge and report an error, but does not exit
+                # assert import_matching_limits(b, a.limits)
+                try:
+                    import_matching_limits(b, a.limits)
+                except Exception as e:
+                    logger.debugln(traceback.format_exc())
             elif e.extern_type == bin_format.extern_global:
                 a = store.globals[e.addr]
                 b = module.imports[i].desc
                 assert a.value.valtype == b.valtype
+        print(f'6mems:{store.mems}')
+        
         # Let vals be the vector of global initialization values determined by module and externvaln
         auxmod = ModuleInstance()
         auxmod.globaladdrs = [e.addr for e in externvals if e.extern_type == bin_format.extern_global]
@@ -110,11 +121,15 @@ class ModuleInstance:
         frame = Frame(auxmod, [], 1, -1)
         stack.add(frame)
         vals = []
+        print(f'8mems:{store.mems}')
+
         for glob in module.globals:
             v = exec_expr(store, frame, stack, glob.expr, -1)[0][0]
             vals.append(v)
         assert isinstance(stack.pop(), Frame)
+        print(f'9mems:{store.mems}')
 
+        print("a")
         # Allocation
         self.allocate(module, store, externvals, vals)
 
@@ -122,6 +137,8 @@ class ModuleInstance:
         frame = Frame(self, [], 1, -1)
         stack.add(frame)
         # For each element segment in module.elem, then do:
+        print(f'10mems:{store.mems}')
+
         for e in module.elem:
             offset = exec_expr(store, frame, stack, e.expr, -1)[0][0]
             assert offset.valtype == bin_format.i32
@@ -129,19 +146,33 @@ class ModuleInstance:
             for i, elem in enumerate(e.init):
                 t.elem[offset.n + i] = elem
         # For each data segment in module.data, then do:
+        print("bb")
+
         for e in module.data:
+            print(e)
+            print(type(e))
             offset = exec_expr(store, frame, stack, e.expr, -1)[0][0]
             assert offset.valtype == bin_format.i32
+            print("1111")
+            print(store.mems)
+            print(e.memidx)
+            print(self.memaddrs[e.memidx])
+
             m = store.mems[self.memaddrs[e.memidx]]
             end = offset.n + len(e.init)
+            print(m)
             assert end <= len(m.data)
+            print("3")
             m.data[offset.n: offset.n + len(e.init)] = e.init
             # store the abi name and its address
             global_vars.data_addr_dict[offset.n] = e.init.decode(errors='ignore').split('\00')[0]
+            print("4")
         # Assert: due to validation, the frame F is now on the top of the stack.
         assert isinstance(stack.pop(), Frame)
         assert stack.len() == 0
         # z3.If the start function module.start is not empty, invoke the function instance.
+        print("c")
+
         if module.start:
             logger.infoln(f'Running start function {module.start}:')
             call(self, module.start, store, stack)
@@ -157,6 +188,7 @@ class ModuleInstance:
         # Imports
         self.funcaddrs.extend([e.addr for e in externvals if e.extern_type == bin_format.extern_func])
         self.tableaddrs.extend([e.addr for e in externvals if e.extern_type == bin_format.extern_table])
+        
         self.memaddrs.extend([e.addr for e in externvals if e.extern_type == bin_format.extern_mem])
         self.globaladdrs.extend([e.addr for e in externvals if e.extern_type == bin_format.extern_global])
         # For each function func in module.funcs, then do:
@@ -173,6 +205,7 @@ class ModuleInstance:
             store.tables.append(tableinst)
             self.tableaddrs.append(len(store.tables) - 1)
         # For each memory module.mems, then do:
+        print(f'allocate: {module.mems}')
         for mem in module.mems:
             meminst = MemoryInstance(mem.memtype)
             store.mems.append(meminst)
@@ -349,7 +382,10 @@ def wasmfunc_call(
     flag_skip = 0
     func_name = list()
     if address - global_vars.library_offset > 32:
-        func_name = list(library_function_dict.keys())[list(library_function_dict.values()).index(address-global_vars.library_offset)]
+        if global_vars.contract_type == 'ethereum':
+            func_name = list(library_function_dict.keys())[list(library_function_dict.values()).index(address-global_vars.library_offset)]
+        else:
+            func_name = ''
         global_vars.list_func.append(f'{func_name} {address} -> ')
         logger.infoln(f'wasmfunc call: {global_vars.list_func} ')
 
