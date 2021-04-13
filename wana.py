@@ -52,7 +52,7 @@ class Runtime:
         self.module = module
         self.module_instance = sym_exec.ModuleInstance()
         self.store = sym_exec.Store()
-
+        
         imps = imps if imps else {}
         externvals = []
         print(f'mems:{self.store.mems}')
@@ -96,9 +96,19 @@ class Runtime:
                 continue
             if e.kind == bin_format.extern_mem:
                 print("81334")
-                a = None
+                # t1 = Limits()
+                # t = MemoryInstance(Limits(e.desc))
+                print(e.desc)
+                print(type(e.desc))
+                # new version
+                a = sym_exec.MemoryInstance(e.desc)
                 self.store.mems.append(a)
                 externvals.append(sym_exec.ExternValue(e.kind, len(self.store.mems) - 1))
+
+                # # old version
+                # a = None
+                # self.store.mems.append(a)
+                # externvals.append(sym_exec.ExternValue(e.kind, len(self.store.mems) - 1))
                 # [TODO]为什么要添加一个空的呢？
                 continue
 

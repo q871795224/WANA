@@ -67,7 +67,7 @@ class Limits:
         maximum: the max value of limit
     """
 
-    def __init__(self, minimum: int, maximum: int):
+    def __init__(self, minimum: int, maximum: int = None):
         self.minimum = minimum
         self.maximum = maximum
 
@@ -417,7 +417,7 @@ class Memory:
         self.memtype: MemoryType
 
     def __repr__(self):
-        return f'{self.memtype}'
+        return f'Memory: {self.memtype}'
 
     @classmethod
     def from_reader(cls, r: typing.BinaryIO):
@@ -628,6 +628,9 @@ class Import:
         else:
             raise Exception('Malformed!')
         return o
+    
+    def __repr__(self):
+        return f"Import: module:{self.module} name:{self.name} kind:{self.kind} desc:{self.desc}"
 
 
 class CustomSection:
@@ -982,7 +985,7 @@ class Module:
                 memory_section = MemorySection.from_reader(io.BytesIO(data))
                 for i, e in enumerate(memory_section.vec):
                     logger.infoln(f'{bin_format.section[section_id][0]:>9}[{i}] {e}')
-                print("!!!!")
+                print(f'!!!!{memory_section.vec[0]} {memory_section} {type(memory_section.vec[0])}')
                 mod.mems = memory_section.vec
             elif section_id == bin_format.global_section:
                 global_section = GlobalSection.from_reader(io.BytesIO(data))
